@@ -1,6 +1,8 @@
 lex.yy.c
 lex.yy.h
 y.tab.c
+parser.tab.c
 y.tab.h
+parser.tab.h
 *.exe
 *.o
