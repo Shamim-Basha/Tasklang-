@@ -1,0 +1,75 @@
+<program>             ::= <task> {<task>}
+
+<task>                ::= "TASK" <identifier> "{" <run_command> <command> "}"
+
+<command>            ::= <schedule_command> | <dependency_command>
+
+
+<run_command>         ::= "RUN" <filename>
+
+<schedule_command>    ::= "AT" <time> 
+                            | "EVERY" "DAY" "AT" <time> 
+                            | "EVERY" "WEEK" "ON" <day_of_week> "AT" <time>       
+
+<day_of_week>         ::= "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" 
+                            | "FRIDAY" | "SATURDAY" | "SUNDAY"
+
+<dependency_command>  ::= "AFTER"<identifier> [<conditional_command>]
+                            | "BEFORE" <identifier>
+                            | "DEPENDS" "ON" <identifier>
+
+<conditional_command> ::= "IF" <condition>
+
+<condition>           ::= "success" | "failure"
+
+<filename>            ::= '"' <identifier>"."<ext> '"'
+<ext>                 ::= <char>{<char>}
+
+<identifier>          ::= <char> (<char> | <digit>)*
+
+<char>                ::= a | b | c  | d | e | f | g | h | i | j | k | l | m 
+                         | n | o | p | q | r | s | t | u | v | w | x | y | z
+                         | A | B | C | D | E | F | G | H | I | J | K | L | M
+                         | N | O | P | Q | R | S | T | U | V | W | X | Y | Z
+
+<time>                ::= <digit><digit> ":" <digit><digit>
+
+<digit>               ::=  0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+
+
+=================================================================================================
+
+<program>             ::= <tasks>
+<tasks>               ::= <task> | <task> <tasks>
+<task>                ::= "TASK" <identifier> "{" <run_command> <command> "}"
+
+<command>            ::= <schedule_command> | <dependency_command>
+
+<run_command>         ::= "RUN" <filename>
+
+<schedule_command>    ::= "AT" <time> 
+                            | "EVERY" "DAY" "AT" <time> 
+                            | "EVERY" "WEEK" "ON" <day_of_week> "AT" <time>       
+
+<day_of_week>         ::= "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY" | "SATURDAY" | "SUNDAY"
+
+<dependency_command>  ::= "AFTER" <identifier> <opt_conditional_command>
+                            | "BEFORE" <identifier>
+                            | "DEPENDS" "ON" <identifier>
+
+<opt_conditional_command> ::= "IF" <condition> |  ε
+<condition>           ::= "success" | "failure"
+
+<filename>            ::= '"' <identifier>"." <ext> '"'
+<ext>                 ::= <char> | <char><ext>
+
+<identifier>          ::= <char> <id_tail>
+<id_tail>             ::= <char> <id_tail> | <digit> <id_tail> |  ε 
+<char>                ::= a | b | c  | d | e | f | g | h | i | j | k | l | m 
+                         | n | o | p | q | r | s | t | u | v | w | x | y | z
+                         | A | B | C | D | E | F | G | H | I | J | K | L | M
+                         | N | O | P | Q | R | S | T | U | V | W | X | Y | Z
+
+<time>                ::= <digit><digit> : <digit><digit>
+
+<digit>               ::=  0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9

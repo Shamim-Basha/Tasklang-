@@ -1,0 +1,25 @@
+TASK dailyReport{
+    RUN "report.py"
+    EVERY DAY AT 06:00
+}
+
+TASK backupDB {
+    RUN "backup.sh"
+    EVERY DAY AT 02:00
+}
+
+TASK sendReport {
+    RUN "report.py"
+    AFTER backupDB
+    IF SUCCESS
+}
+
+TASK sendReport {
+    RUN "report.py"
+    BEFORE cleanup
+}
+
+TASK cleanup {
+    RUN "cleanup.sh"
+    EVERY WEEK ON SUNDAY AT 03:00
+}
