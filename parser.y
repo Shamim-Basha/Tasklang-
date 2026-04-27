@@ -3,10 +3,23 @@
 #include <stdlib.h>
 #include <string.h>
 
-int yylex(void);
+int yylex();
 void yyerror(const char *s);
 extern FILE *yyin;
 extern int yylineno;
+
+#define MAX_TASKS 512
+
+static char *task_names[MAX_TASKS];
+static int dependency_graph[MAX_TASKS][MAX_TASKS];
+static int task_count = 0;
+static char *current_task = NULL;
+
+static int get_task_index(const char *name);
+static int has_path(int from, int target, int *visited);
+static int would_create_cycle(int from, int to);
+static int add_dependency_edge(const char *from, const char *to, const char *relation);
+static void cleanup_graph(void);
 
 %}
 
@@ -24,6 +37,8 @@ extern int yylineno;
 
 %%
 
+
+
 program : tasks ;
 
 tasks : task
@@ -31,10 +46,31 @@ tasks : task
     ;
 
 task : TASK identifier {
+           if (current_task) {
+               free(current_task);
+               current_task = NULL;
+           }
+
+           current_task = strdup($2);
+           if (!current_task) {
+               yyerror("Out of memory");
+               YYABORT;
+           }
+
+           if (get_task_index(current_task) < 0) {
+               YYABORT;
+           }
+
            printf("Executing Task: %s\n", $2);
            free($2); 
         }
-       LCURL run_command command RCURL{ printf("\n"); }
+       LCURL run_command command RCURL{
+           printf("\n");
+           if (current_task) {
+               free(current_task);
+               current_task = NULL;
+           }
+       }
     ;
 
 command : schedule_command
@@ -49,12 +85,16 @@ run_command : RUN filename {
 
 schedule_command : AT time {
                         printf("  Schedule: AT %s\n", $2);
+                    free($2);
                    }
                  | EVERY DAY AT time {
                         printf("  Schedule: EVERY DAY AT %s\n", $4);
+                    free($4);
                    }
                  | EVERY WEEK ON day_of_week AT time {
                         printf("  Schedule: EVERY WEEK ON %s AT %s\n", $4, $6);
+                    free($4);
+                    free($6);
                    }
         ;
 
@@ -67,9 +107,37 @@ day_of_week : MONDAY { $$ = strdup("MONDAY"); }
             | SUNDAY { $$ = strdup("SUNDAY"); } 
         ;
 
-dependency_command : AFTER identifier { printf("  Depends on: %s\n", $2); }
+dependency_command : AFTER identifier {
+                        if (!current_task) {
+                            yyerror("Dependency declared outside of a task");
+                            free($2);
+                            YYABORT;
+                        }
+
+                        if (!add_dependency_edge(current_task, $2, "AFTER")) {
+                            free($2);
+                            YYABORT;
+                        }
+
+                        printf("  Depends on: %s\n", $2);
+                        free($2);
+                    }
                     opt_conditional_command
-                 | BEFORE identifier { printf("  Depends on: %s\n", $2); }
+                 | BEFORE identifier {
+                        if (!current_task) {
+                            yyerror("Dependency declared outside of a task");
+                            free($2);
+                            YYABORT;
+                        }
+
+                        if (!add_dependency_edge($2, current_task, "BEFORE")) {
+                            free($2);
+                            YYABORT;
+                        }
+
+                        printf("  Depends on: %s\n", $2);
+                        free($2);
+                    }
         ;
 
 opt_conditional_command : conditional_command
@@ -78,6 +146,7 @@ opt_conditional_command : conditional_command
 
 conditional_command : IF condition {
                         printf("  Condition: %s\n", $2);
+                        free($2);
                     }
         ;
 
@@ -96,14 +165,109 @@ time : TIME
 
 %%
 
+static int get_task_index(const char *name) {
+    int i;
+
+    for (i = 0; i < task_count; i++) {
+        if (strcmp(task_names[i], name) == 0) {
+            return i;
+        }
+    }
+
+    if (task_count >= MAX_TASKS) {
+        yyerror("Too many tasks in dependency graph");
+        return -1;
+    }
+
+    task_names[task_count] = strdup(name);
+    if (!task_names[task_count]) {
+        yyerror("Out of memory");
+        return -1;
+    }
+
+    task_count++;
+    return task_count - 1;
+}
+
+static int has_path(int from, int target, int *visited) {
+    int i;
+
+    if (from == target) {
+        return 1;
+    }
+
+    visited[from] = 1;
+
+    for (i = 0; i < task_count; i++) {
+        if (dependency_graph[from][i] && !visited[i]) {
+            if (has_path(i, target, visited)) {
+                return 1;
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int would_create_cycle(int from, int to) {
+    int visited[MAX_TASKS] = {0};
+    return has_path(to, from, visited);
+}
+
+static int add_dependency_edge(const char *from, const char *to, const char *relation) {
+    int from_idx = get_task_index(from);
+    int to_idx = get_task_index(to);
+
+    if (from_idx < 0 || to_idx < 0) {
+        return 0;
+    }
+
+    if (dependency_graph[from_idx][to_idx]) {
+        return 1;
+    }
+
+    if (would_create_cycle(from_idx, to_idx)) {
+        fprintf(stderr, "\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
+        fprintf(stderr, "\033[31m");
+        fprintf(
+            stderr,
+            ">> %d : Cycle detected after %s dependency (%s -> %s)\n",
+            yylineno,
+            relation,
+            from,
+            to
+        );
+        fprintf(stderr, "\033[0m");
+        fprintf(stderr, ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
+        return 0;
+    }
+
+    dependency_graph[from_idx][to_idx] = 1;
+    return 1;
+}
+
+static void cleanup_graph(void) {
+    int i;
+
+    for (i = 0; i < task_count; i++) {
+        free(task_names[i]);
+        task_names[i] = NULL;
+    }
+
+    task_count = 0;
+
+    if (current_task) {
+        free(current_task);
+        current_task = NULL;
+    }
+}
+
 void yyerror(const char *s) {
     const char *red = "\033[31m";
     const char *reset = "\033[0m";
 
     fprintf(stderr, "\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
     fprintf(stderr, "%s", red);
-
-
     if (strstr(s, "unexpected") != NULL) {
         fprintf(stderr, ">> %d : Unexpected token at line %d\n", yylineno, yylineno);
     } else if (strstr(s, "expecting") != NULL) {
@@ -112,7 +276,7 @@ void yyerror(const char *s) {
         fprintf(stderr, ">> %d : Syntax error at line %d\n", yylineno, yylineno);
     }
     fprintf(stderr, "%s", reset);
-    fprintf(stderr, ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n%s", reset);
+    fprintf(stderr, ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
 }
 
 int main(int argc, char *argv[]) {
@@ -144,6 +308,8 @@ int main(int argc, char *argv[]) {
     if (in) {
         fclose(in);
     }
+
+    cleanup_graph();
 
     return rc;
 }

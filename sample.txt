@@ -1,4 +1,4 @@
-TASK dailyReport{
+TASK dailyReport {
     RUN "report.py"
     EVERY DAY AT 06:00
 }
@@ -14,16 +14,11 @@ TASK sendReport {
     IF SUCCESS
 }
 
-TASK sendReport {
-    RUN "report.py"
-    AFTER backupDB
-}
-
-TASK sendReport {
-    RUN "report.py"
+TASK notifyTeam {
+    RUN "notify.sh"
     BEFORE cleanup
 }
-
+j
 TASK cleanup {
     RUN "cleanup.sh"
     EVERY WEEK ON SUNDAY AT 03:00
