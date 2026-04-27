@@ -14,9 +14,8 @@
 <day_of_week>         ::= "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" 
                             | "FRIDAY" | "SATURDAY" | "SUNDAY"
 
-<dependency_command>  ::= "AFTER"<identifier> [<conditional_command>]
+<dependency_command>  ::= "AFTER" <identifier> [<conditional_command>]
                             | "BEFORE" <identifier>
-                            | "DEPENDS" "ON" <identifier>
 
 <conditional_command> ::= "IF" <condition>
 
@@ -55,7 +54,6 @@
 
 <dependency_command>  ::= "AFTER" <identifier> <opt_conditional_command>
                             | "BEFORE" <identifier>
-                            | "DEPENDS" "ON" <identifier>
 
 <opt_conditional_command> ::= "IF" <condition> |  ε
 <condition>           ::= "success" | "failure"

@@ -19,7 +19,6 @@ NUM [0-9]
 "AT"                            	{return AT;}
 "AFTER"                         	{return AFTER;}
 "BEFORE"                        	{return BEFORE;}
-"DEPENDS"                       	{return DEPENDS;}
 "IF"                            	{return IF;}
 "success"|"SUCCESS"             	{return SUCCESS;}
 "failure"|"FAILURE"             	{return FAILURE;}

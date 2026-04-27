@@ -16,6 +16,11 @@ TASK sendReport {
 
 TASK sendReport {
     RUN "report.py"
+    AFTER backupDB
+}
+
+TASK sendReport {
+    RUN "report.py"
     BEFORE cleanup
 }
 

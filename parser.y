@@ -14,7 +14,7 @@ extern int yylineno;
     char *str;
 }
 
-%token TASK RUN EVERY DAY WEEK ON AT AFTER BEFORE DEPENDS IF
+%token TASK RUN EVERY DAY WEEK ON AT AFTER BEFORE IF
 %token SUCCESS FAILURE
 %token MONDAY TUESDAY WEDNESDAY THURSDAY FRIDAY SATURDAY SUNDAY
 %token <str> IDENTIFIER FILENAME TIME
@@ -42,7 +42,7 @@ command : schedule_command
     ;
 
 run_command : RUN filename {
-                printf("  Script: \"%s\"\n", $2);
+                printf("  Script: %s\n", $2);
                 free($2);
             }
         ;
@@ -69,8 +69,7 @@ day_of_week : MONDAY { $$ = strdup("MONDAY"); }
 
 dependency_command : AFTER identifier { printf("  Depends on: %s\n", $2); }
                     opt_conditional_command
-                 | BEFORE identifier { printf("  Before: %s\n", $2); }
-                 | DEPENDS ON identifier { printf("  Depends on: %s\n", $3); }
+                 | BEFORE identifier { printf("  Depends on: %s\n", $2); }
         ;
 
 opt_conditional_command : conditional_command
