@@ -1,0 +1,9 @@
+TASK taskA {
+    RUN "a.sh"
+    AFTER second
+}
+
+TASK taskB {
+    RUN "b.sh"
+    AT 10:10
+}

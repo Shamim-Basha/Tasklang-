@@ -1,0 +1,4 @@
+TASK taskA {
+    RUN "a.sh"
+    EVERY WEEK ON MONDAY AT 09:15
+}

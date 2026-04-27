@@ -1,0 +1,10 @@
+TASK taskA {
+    RUN "a.sh"
+    AT 07:00
+}
+
+TASK taskB {
+    RUN "exec.sh"
+    AFTER taskA
+    IF SUCCESS
+}

@@ -18,7 +18,7 @@ TASK notifyTeam {
     RUN "notify.sh"
     BEFORE cleanup
 }
-j
+
 TASK cleanup {
     RUN "cleanup.sh"
     EVERY WEEK ON SUNDAY AT 03:00

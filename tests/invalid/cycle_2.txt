@@ -1,0 +1,14 @@
+TASK taskA {
+    RUN "a.sh"
+    AFTER taskB
+}
+
+TASK taskB {
+    RUN "b.sh"
+    AFTER taskC
+}
+
+TASK taskC {
+    RUN "c.sh"
+    AFTER taskA
+}
