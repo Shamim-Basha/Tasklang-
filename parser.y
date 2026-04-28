@@ -20,8 +20,7 @@ static int find_task_index(const char *name);
 static int get_task_index(const char *name);
 static int set_task_index(const char *name);
 static int is_valid_time(const char *value);
-static int has_path(int from, int target, int *visited);
-static int find_path_with_parent(int from, int target, int *visited, int *parent);
+static int has_path(int from, int target, int *visited, int *parent);
 static void print_cycle_path(int from_idx, int to_idx);
 static int would_create_cycle(int from, int to);
 static int add_dependency_edge(const char *from, const char *to);
@@ -218,7 +217,7 @@ static int is_valid_time(const char *value) {
     return 1;
 }
 
-static int has_path(int from, int target, int *visited) {
+static int has_path(int from, int target, int *visited, int *parent) {
     if (from == target) {
         return 1;
     }
@@ -227,26 +226,8 @@ static int has_path(int from, int target, int *visited) {
 
     for (int i = 0; i < task_count; i++) {
         if (dependency_graph[from][i] && !visited[i]) {
-            if (has_path(i, target, visited)) {
-                return 1;
-            }
-        }
-    }
-
-    return 0;
-}
-
-static int find_path_with_parent(int from, int target, int *visited, int *parent) {
-    visited[from] = 1;
-
-    if (from == target) {
-        return 1;
-    }
-
-    for (int i = 0; i < task_count; i++) {
-        if (dependency_graph[from][i] && !visited[i]) {
-            parent[i] = from;
-            if (find_path_with_parent(i, target, visited, parent)) {
+            if (parent) parent[i] = from;
+            if (has_path(i, target, visited, parent)) {
                 return 1;
             }
         }
@@ -266,7 +247,7 @@ static void print_cycle_path(int from_idx, int to_idx) {
         parent[i] = -1;
     }
 
-    if (!find_path_with_parent(to_idx, from_idx, visited, parent)) {
+    if (!has_path(to_idx, from_idx, visited, parent)) {
         fprintf(stderr, "%s -> %s\n", task_names[from_idx], task_names[to_idx]);
         return;
     }
@@ -294,7 +275,7 @@ static void print_cycle_path(int from_idx, int to_idx) {
 
 static int would_create_cycle(int from, int to) {
     int visited[MAX_TASKS] = {0};
-    return has_path(to, from, visited);
+    return has_path(to, from, visited, NULL);
 }
 
 static int add_dependency_edge(const char *from, const char *to) {
