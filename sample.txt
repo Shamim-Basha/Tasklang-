@@ -3,11 +3,9 @@ TASK dailyReport {
     EVERY DAY AT 06:00
 }
 
-AFTER dailyReport
-
 TASK backupDB {
     RUN "backup.sh"
-    EVERY DAY AT 02:00
+    EVERY DAY AT 23:08
 }
 
 TASK sendReport {

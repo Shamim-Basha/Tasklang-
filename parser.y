@@ -19,9 +19,12 @@ static char *current_task = NULL;
 static int find_task_index(const char *name);
 static int get_task_index(const char *name);
 static int set_task_index(const char *name);
+static int is_valid_time(const char *value);
 static int has_path(int from, int target, int *visited);
+static int find_path_with_parent(int from, int target, int *visited, int *parent);
+static void print_cycle_path(int from_idx, int to_idx);
 static int would_create_cycle(int from, int to);
-static int add_dependency_edge(const char *from, const char *to, const char *relation);
+static int add_dependency_edge(const char *from, const char *to);
 static void cleanup_graph(void);
 %}
 
@@ -85,15 +88,15 @@ run_command : RUN filename {
         ;
 
 schedule_command : AT time {
-                        printf("  Schedule: AT %s\n", $2);
+                    printf("  Schedule: AT %s\n", $2);
                     free($2);
                    }
                  | EVERY DAY AT time {
-                        printf("  Schedule: EVERY DAY AT %s\n", $4);
+                    printf("  Schedule: EVERY DAY AT %s\n", $4);
                     free($4);
                    }
                  | EVERY WEEK ON day_of_week AT time {
-                        printf("  Schedule: EVERY WEEK ON %s AT %s\n", $4, $6);
+                    printf("  Schedule: EVERY WEEK ON %s AT %s\n", $4, $6);
                     free($4);
                     free($6);
                    }
@@ -109,34 +112,24 @@ day_of_week : MONDAY { $$ = strdup("MONDAY"); }
         ;
 
 dependency_command : AFTER identifier {
-                        if (!current_task) {
-                            yyerror("Dependency declared outside of a task");
-                            free($2);
-                            YYABORT;
-                        }
-
-                        if (!add_dependency_edge(current_task, $2, "AFTER")) {
+                        if (!add_dependency_edge($2, current_task)) {
                             free($2);
                             YYABORT;
                         }
 
                         printf("  Depends on: %s\n", $2);
+                        printf("  Runs after %s\n", $2);
                         free($2);
                     }
                     opt_conditional_command
                  | BEFORE identifier {
-                        if (!current_task) {
-                            yyerror("Dependency declared outside of a task");
-                            free($2);
-                            YYABORT;
-                        }
-
-                        if (!add_dependency_edge($2, current_task, "BEFORE")) {
+                        if (!add_dependency_edge(current_task, $2)) {
                             free($2);
                             YYABORT;
                         }
 
                         printf("  Depends on: %s\n", $2);
+                        printf("  Runs before %s\n", $2);
                         free($2);
                     }
         ;
@@ -161,7 +154,14 @@ filename : FILENAME { $$ = $1; }
 identifier : IDENTIFIER 
         ;
 
-time : TIME 
+time : TIME {
+            if (!is_valid_time($1)) {
+                yyerror("Invalid time format (expected HH:MM in 24-hour format)");
+                free($1);
+                YYABORT;
+            }
+            $$ = $1;
+        }
         ;
 
 %%
@@ -208,6 +208,16 @@ static int set_task_index(const char *name) {
     return task_count++;
 }
 
+static int is_valid_time(const char *value) {
+    int hour, minute;
+    
+    if (sscanf(value, "%2d:%2d", &hour, &minute) != 2) return 0;
+
+    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return 0;
+
+    return 1;
+}
+
 static int has_path(int from, int target, int *visited) {
     if (from == target) {
         return 1;
@@ -226,12 +236,68 @@ static int has_path(int from, int target, int *visited) {
     return 0;
 }
 
+static int find_path_with_parent(int from, int target, int *visited, int *parent) {
+    visited[from] = 1;
+
+    if (from == target) {
+        return 1;
+    }
+
+    for (int i = 0; i < task_count; i++) {
+        if (dependency_graph[from][i] && !visited[i]) {
+            parent[i] = from;
+            if (find_path_with_parent(i, target, visited, parent)) {
+                return 1;
+            }
+        }
+    }
+
+    return 0;
+}
+
+static void print_cycle_path(int from_idx, int to_idx) {
+    int visited[MAX_TASKS] = {0};
+    int parent[MAX_TASKS];
+    int path[MAX_TASKS];
+    int path_len = 0;
+    int cur;
+
+    for (int i = 0; i < MAX_TASKS; i++) {
+        parent[i] = -1;
+    }
+
+    if (!find_path_with_parent(to_idx, from_idx, visited, parent)) {
+        fprintf(stderr, "%s -> %s\n", task_names[from_idx], task_names[to_idx]);
+        return;
+    }
+
+    cur = from_idx;
+    while (cur != -1 && path_len < MAX_TASKS) {
+        path[path_len++] = cur;
+        if (cur == to_idx) {
+            break;
+        }
+        cur = parent[cur];
+    }
+
+    if (path_len == 0 || path[path_len - 1] != to_idx) {
+        fprintf(stderr, "%s -> %s\n", task_names[from_idx], task_names[to_idx]);
+        return;
+    }
+
+    fprintf(stderr, "%s", task_names[from_idx]);
+    for (int i = path_len - 1; i >= 0; i--) {
+        fprintf(stderr, " -> %s", task_names[path[i]]);
+    }
+    fprintf(stderr, "\n");
+}
+
 static int would_create_cycle(int from, int to) {
     int visited[MAX_TASKS] = {0};
     return has_path(to, from, visited);
 }
 
-static int add_dependency_edge(const char *from, const char *to, const char *relation) {
+static int add_dependency_edge(const char *from, const char *to) {
     int from_idx = get_task_index(from);
     int to_idx = get_task_index(to);
 
@@ -246,7 +312,9 @@ static int add_dependency_edge(const char *from, const char *to, const char *rel
     if (would_create_cycle(from_idx, to_idx)) {
         fprintf(stderr, "\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
         fprintf(stderr, "\033[31m");
-        fprintf(stderr, ">> %d : Cycle detected after %s dependency (%s -> %s)\n", yylineno, relation, from, to );
+        fprintf(stderr, ">> %d : Cycle detected\n", yylineno);
+        fprintf(stderr, ">> Cycle: ");
+        print_cycle_path(from_idx, to_idx);
         fprintf(stderr, "\033[0m");
         fprintf(stderr, ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
         return 0;
