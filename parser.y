@@ -8,7 +8,7 @@ void yyerror(const char *s);
 extern FILE *yyin;
 extern int yylineno;
 
-#define MAX_TASKS 512
+#define MAX_TASKS 128
 
 static char *task_names[MAX_TASKS];
 static int dependency_graph[MAX_TASKS][MAX_TASKS];
@@ -47,29 +47,19 @@ tasks : task
     ;
 
 task : TASK identifier {
-           if (current_task) {
-               free(current_task);
-               current_task = NULL;
-           }
+            // Check for duplicate task definition
+            if (find_task_index($2) >= 0) {
+                yyerror("Duplicate task definition");
+                free($2);
+            }
 
-           if (find_task_index($2) >= 0) {
-               yyerror("Duplicate task definition");
-               free($2);
-               YYABORT;
-           }
+            current_task = strdup($2);
+            if (!current_task) {
+                yyerror("Out of memory");
+            }
 
-           current_task = strdup($2);
-           if (!current_task) {
-               yyerror("Out of memory");
-               YYABORT;
-           }
-
-           if (get_task_index(current_task) < 0) {
-               YYABORT;
-           }
-
-           printf("Executing Task: %s\n", $2);
-           free($2); 
+            printf("Executing Task: %s\n", $2);
+            free($2); 
         }
        LCURL run_command command RCURL{
            printf("\n");
@@ -192,19 +182,23 @@ static int get_task_index(const char *name) {
         return i;
     }
 
+    return set_task_index(name);
+}
+
+static int set_task_index(const char *name) {
     if (task_count >= MAX_TASKS) {
         yyerror("Too many tasks in dependency graph");
         return -1;
     }
 
     task_names[task_count] = strdup(name);
+
     if (!task_names[task_count]) {
         yyerror("Out of memory");
         return -1;
     }
 
-    task_count++;
-    return task_count - 1;
+    return task_count++;
 }
 
 static int has_path(int from, int target, int *visited) {
@@ -288,12 +282,10 @@ void yyerror(const char *s) {
     fprintf(stderr, "%s", red);
     if (strstr(s, "unexpected") != NULL) {
         fprintf(stderr, ">> %d : Unexpected token at line %d\n", yylineno, yylineno);
-    } else if (strstr(s, "expecting") != NULL) {
+    }else if (strstr(s, "expecting") != NULL) {
         fprintf(stderr, ">> %d : Missing or misplaced token at line %d\n", yylineno, yylineno);
-    } else if (strstr(s, "Duplicate task definition") != NULL){
-        fprintf(stderr, ">> %d : Duplicate Task Definition Found at line %d\n", yylineno, yylineno);
-    } else {
-        fprintf(stderr, ">> %d : Syntax error at line %d\n", yylineno, yylineno);
+    }else {
+        fprintf(stderr, ">> %d : Syntax error: %s at line %d\n", yylineno, s, yylineno);
     }
     fprintf(stderr, "%s", reset);
     fprintf(stderr, ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
