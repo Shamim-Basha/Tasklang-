@@ -15,6 +15,7 @@ static int dependency_graph[MAX_TASKS][MAX_TASKS];
 static int task_count = 0;
 static char *current_task = NULL;
 
+static int find_task_index(const char *name);
 static int get_task_index(const char *name);
 static int has_path(int from, int target, int *visited);
 static int would_create_cycle(int from, int to);
@@ -49,6 +50,12 @@ task : TASK identifier {
            if (current_task) {
                free(current_task);
                current_task = NULL;
+           }
+
+           if (find_task_index($2) >= 0) {
+               yyerror("Duplicate task definition");
+               free($2);
+               YYABORT;
            }
 
            current_task = strdup($2);
@@ -165,13 +172,24 @@ time : TIME
 
 %%
 
-static int get_task_index(const char *name) {
+static int find_task_index(const char *name) {
     int i;
 
     for (i = 0; i < task_count; i++) {
         if (strcmp(task_names[i], name) == 0) {
             return i;
         }
+    }
+
+    return -1;
+}
+
+static int get_task_index(const char *name) {
+    int i;
+
+    i = find_task_index(name);
+    if (i >= 0) {
+        return i;
     }
 
     if (task_count >= MAX_TASKS) {
@@ -272,6 +290,8 @@ void yyerror(const char *s) {
         fprintf(stderr, ">> %d : Unexpected token at line %d\n", yylineno, yylineno);
     } else if (strstr(s, "expecting") != NULL) {
         fprintf(stderr, ">> %d : Missing or misplaced token at line %d\n", yylineno, yylineno);
+    } else if (strstr(s, "Duplicate task definition") != NULL){
+        fprintf(stderr, ">> %d : Duplicate Task Definition Found at line %d\n", yylineno, yylineno);
     } else {
         fprintf(stderr, ">> %d : Syntax error at line %d\n", yylineno, yylineno);
     }
