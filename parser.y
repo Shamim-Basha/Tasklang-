@@ -12,16 +12,17 @@ extern int yylineno;
 
 static char *task_names[MAX_TASKS];
 static int dependency_graph[MAX_TASKS][MAX_TASKS];
+static int task_defined[MAX_TASKS];
 static int task_count = 0;
 static char *current_task = NULL;
 
 static int find_task_index(const char *name);
 static int get_task_index(const char *name);
+static int set_task_index(const char *name);
 static int has_path(int from, int target, int *visited);
 static int would_create_cycle(int from, int to);
 static int add_dependency_edge(const char *from, const char *to, const char *relation);
 static void cleanup_graph(void);
-
 %}
 
 %union {
@@ -47,15 +48,18 @@ tasks : task
     ;
 
 task : TASK identifier {
-            // Check for duplicate task definition
-            if (find_task_index($2) >= 0) {
-                yyerror("Duplicate task definition");
-                free($2);
-            }
-
             current_task = strdup($2);
             if (!current_task) {
                 yyerror("Out of memory");
+                free($2);
+                YYABORT;
+            }
+
+            // Assign or confirm the task index for this definition
+            if (set_task_index(current_task) < 0) {
+                free(current_task);
+                free($2);
+                YYABORT;
             }
 
             printf("Executing Task: %s\n", $2);
@@ -163,9 +167,7 @@ time : TIME
 %%
 
 static int find_task_index(const char *name) {
-    int i;
-
-    for (i = 0; i < task_count; i++) {
+    for (int i = 0; i < task_count; i++) {
         if (strcmp(task_names[i], name) == 0) {
             return i;
         }
@@ -175,9 +177,7 @@ static int find_task_index(const char *name) {
 }
 
 static int get_task_index(const char *name) {
-    int i;
-
-    i = find_task_index(name);
+    int i = find_task_index(name);
     if (i >= 0) {
         return i;
     }
@@ -186,31 +186,36 @@ static int get_task_index(const char *name) {
 }
 
 static int set_task_index(const char *name) {
+    int i;
+
+    i = find_task_index(name);
+    if (i >= 0) {
+        if (task_defined[i]) {
+            yyerror("Duplicate task definition");
+            return -1;
+        }
+
+        task_defined[i] = 1;
+        return i;
+    }
+
     if (task_count >= MAX_TASKS) {
         yyerror("Too many tasks in dependency graph");
         return -1;
     }
 
     task_names[task_count] = strdup(name);
-
-    if (!task_names[task_count]) {
-        yyerror("Out of memory");
-        return -1;
-    }
-
     return task_count++;
 }
 
 static int has_path(int from, int target, int *visited) {
-    int i;
-
     if (from == target) {
         return 1;
     }
 
     visited[from] = 1;
 
-    for (i = 0; i < task_count; i++) {
+    for (int i = 0; i < task_count; i++) {
         if (dependency_graph[from][i] && !visited[i]) {
             if (has_path(i, target, visited)) {
                 return 1;
@@ -241,14 +246,7 @@ static int add_dependency_edge(const char *from, const char *to, const char *rel
     if (would_create_cycle(from_idx, to_idx)) {
         fprintf(stderr, "\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
         fprintf(stderr, "\033[31m");
-        fprintf(
-            stderr,
-            ">> %d : Cycle detected after %s dependency (%s -> %s)\n",
-            yylineno,
-            relation,
-            from,
-            to
-        );
+        fprintf(stderr, ">> %d : Cycle detected after %s dependency (%s -> %s)\n", yylineno, relation, from, to );
         fprintf(stderr, "\033[0m");
         fprintf(stderr, ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
         return 0;
@@ -259,11 +257,10 @@ static int add_dependency_edge(const char *from, const char *to, const char *rel
 }
 
 static void cleanup_graph(void) {
-    int i;
-
-    for (i = 0; i < task_count; i++) {
+    for (int i = 0; i < task_count; i++) {
         free(task_names[i]);
         task_names[i] = NULL;
+        task_defined[i] = 0;
     }
 
     task_count = 0;

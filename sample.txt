@@ -2,10 +2,8 @@ TASK dailyReport {
     RUN "report.py"
     EVERY DAY AT 06:00
 }
-TASK dailyReport {
-    RUN "report.py"
-    EVERY DAY AT 06:00
-}
+
+AFTER dailyReport
 
 TASK backupDB {
     RUN "backup.sh"
