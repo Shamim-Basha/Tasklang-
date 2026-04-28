@@ -1,3 +1,5 @@
+======================================> EBNF <===========================================================
+
 <program>             ::= <task> {<task>}
 
 <task>                ::= "TASK" <identifier> "{" <run_command> <command> "}"
@@ -22,6 +24,7 @@
 <condition>           ::= "success" | "failure"
 
 <filename>            ::= '"' <identifier>"."<ext> '"'
+
 <ext>                 ::= <char>{<char>}
 
 <identifier>          ::= <char> (<char> | <digit>)*
@@ -36,10 +39,12 @@
 <digit>               ::=  0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 
 
-=================================================================================================
+======================================> BNF <===========================================================
 
 <program>             ::= <tasks>
+
 <tasks>               ::= <task> | <task> <tasks>
+
 <task>                ::= "TASK" <identifier> "{" <run_command> <command> "}"
 
 <command>            ::= <schedule_command> | <dependency_command>
@@ -56,13 +61,17 @@
                             | "BEFORE" <identifier>
 
 <opt_conditional_command> ::= "IF" <condition> |  ε
+
 <condition>           ::= "success" | "failure"
 
 <filename>            ::= '"' <identifier>"." <ext> '"'
+
 <ext>                 ::= <char> | <char><ext>
 
 <identifier>          ::= <char> <id_tail>
+
 <id_tail>             ::= <char> <id_tail> | <digit> <id_tail> |  ε 
+
 <char>                ::= a | b | c  | d | e | f | g | h | i | j | k | l | m 
                          | n | o | p | q | r | s | t | u | v | w | x | y | z
                          | A | B | C | D | E | F | G | H | I | J | K | L | M
