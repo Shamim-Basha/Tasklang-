@@ -20,8 +20,7 @@ static int find_task_index(const char *name);
 static int get_task_index(const char *name);
 static int set_task_index(const char *name);
 static int is_valid_time(const char *value);
-static int has_path(int from, int target, int *visited, int *parent);
-static void print_cycle_path(int from_idx, int to_idx);
+static int has_path(int from, int target, int *visited);
 static int would_create_cycle(int from, int to);
 static int add_dependency_edge(const char *from, const char *to);
 static void cleanup_graph(void);
@@ -217,7 +216,7 @@ static int is_valid_time(const char *value) {
     return 1;
 }
 
-static int has_path(int from, int target, int *visited, int *parent) {
+static int has_path(int from, int target, int *visited) {
     if (from == target) {
         return 1;
     }
@@ -226,8 +225,7 @@ static int has_path(int from, int target, int *visited, int *parent) {
 
     for (int i = 0; i < task_count; i++) {
         if (dependency_graph[from][i] && !visited[i]) {
-            if (parent) parent[i] = from;
-            if (has_path(i, target, visited, parent)) {
+            if (has_path(i, target, visited)) {
                 return 1;
             }
         }
@@ -236,46 +234,9 @@ static int has_path(int from, int target, int *visited, int *parent) {
     return 0;
 }
 
-static void print_cycle_path(int from_idx, int to_idx) {
-    int visited[MAX_TASKS] = {0};
-    int parent[MAX_TASKS];
-    int path[MAX_TASKS];
-    int path_len = 0;
-    int cur;
-
-    for (int i = 0; i < MAX_TASKS; i++) {
-        parent[i] = -1;
-    }
-
-    if (!has_path(to_idx, from_idx, visited, parent)) {
-        fprintf(stderr, "%s -> %s\n", task_names[from_idx], task_names[to_idx]);
-        return;
-    }
-
-    cur = from_idx;
-    while (cur != -1 && path_len < MAX_TASKS) {
-        path[path_len++] = cur;
-        if (cur == to_idx) {
-            break;
-        }
-        cur = parent[cur];
-    }
-
-    if (path_len == 0 || path[path_len - 1] != to_idx) {
-        fprintf(stderr, "%s -> %s\n", task_names[from_idx], task_names[to_idx]);
-        return;
-    }
-
-    fprintf(stderr, "%s", task_names[from_idx]);
-    for (int i = path_len - 1; i >= 0; i--) {
-        fprintf(stderr, " -> %s", task_names[path[i]]);
-    }
-    fprintf(stderr, "\n");
-}
-
 static int would_create_cycle(int from, int to) {
     int visited[MAX_TASKS] = {0};
-    return has_path(to, from, visited, NULL);
+    return has_path(to, from, visited);
 }
 
 static int add_dependency_edge(const char *from, const char *to) {
@@ -291,13 +252,9 @@ static int add_dependency_edge(const char *from, const char *to) {
     }
 
     if (would_create_cycle(from_idx, to_idx)) {
-        fprintf(stderr, "\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
-        fprintf(stderr, "\033[31m");
-        fprintf(stderr, ">> %d : Cycle detected\n", yylineno);
-        fprintf(stderr, ">> Cycle: ");
-        print_cycle_path(from_idx, to_idx);
-        fprintf(stderr, "\033[0m");
-        fprintf(stderr, ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
+        char message[256];
+        snprintf(message, sizeof(message), "Cycle detected from %s to %s", task_names[from_idx], task_names[to_idx]);
+        yyerror(message);
         return 0;
     }
 
