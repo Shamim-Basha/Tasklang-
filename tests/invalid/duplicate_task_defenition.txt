@@ -1,0 +1,9 @@
+TASK dailyReport {
+    RUN "report.py"
+    EVERY DAY AT 06:00
+}
+
+TASK dailyReport {
+    RUN "another.py"
+    EVERY DAY AT 07:00
+}
