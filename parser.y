@@ -323,18 +323,15 @@ static void cleanup_graph(void) {
 void yyerror(const char *s) {
     const char *red = "\033[31m";
     const char *reset = "\033[0m";
-
     fprintf(stderr, "\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
     fprintf(stderr, "%s", red);
-    if (strstr(s, "unexpected") != NULL) {
-        fprintf(stderr, ">> %d : Unexpected token at line %d\n", yylineno, yylineno);
-    }else if (strstr(s, "expecting") != NULL) {
-        fprintf(stderr, ">> %d : Missing or misplaced token at line %d\n", yylineno, yylineno);
-    }else {
-        fprintf(stderr, ">> %d : Syntax error: %s at line %d\n", yylineno, s, yylineno);
+    if (s && *s) {
+        fprintf(stderr, ">> %d : %s\n", yylineno, s);
+    } else {
+        fprintf(stderr, ">> %d : Syntax error\n", yylineno);
     }
     fprintf(stderr, "%s", reset);
-    fprintf(stderr, ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
+    fprintf(stderr, ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
 }
 
 int main(int argc, char *argv[]) {
