@@ -7,7 +7,6 @@ ________________________________________________________________________________
 
 <command>            ::= <schedule_command> | <dependency_command>
 
-
 <run_command>         ::= "RUN" <filename>
 
 <schedule_command>    ::= "AT" <time> 

@@ -19,6 +19,7 @@ static char *current_task = NULL;
 static int find_task_index(const char *name);
 static int get_task_index(const char *name);
 static int set_task_index(const char *name);
+static int define_task(const char *name);
 static int is_valid_time(const char *value);
 static int has_path(int from, int target, int *visited);
 static int would_create_cycle(int from, int to);
@@ -57,7 +58,7 @@ task : TASK identifier {
             }
 
             // Assign or confirm the task index for this definition
-            if (set_task_index(current_task) < 0) {
+            if (define_task(current_task) < 0) {
                 free(current_task);
                 free($2);
                 YYABORT;
@@ -188,12 +189,6 @@ static int set_task_index(const char *name) {
 
     i = find_task_index(name);
     if (i >= 0) {
-        if (task_defined[i]) {
-            yyerror("Duplicate task definition");
-            return -1;
-        }
-
-        task_defined[i] = 1;
         return i;
     }
 
@@ -204,6 +199,17 @@ static int set_task_index(const char *name) {
 
     task_names[task_count] = strdup(name);
     return task_count++;
+}
+
+static int define_task(const char *name) {
+    int idx = get_task_index(name);
+    if (idx < 0) return -1;
+    if (task_defined[idx]) {
+        yyerror("Duplicate task definition");
+        return -1;
+    }
+    task_defined[idx] = 1;
+    return idx;
 }
 
 static int is_valid_time(const char *value) {
