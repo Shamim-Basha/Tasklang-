@@ -60,6 +60,31 @@ TASK taskName {
 }
 ```
 
+### Multiple Task Definition
+
+```
+TASK dailyReport {
+    RUN "report.py"
+    EVERY DAY AT 06:00
+}
+
+TASK backupDB {
+    RUN "backup.sh"
+    EVERY DAY AT 23:08
+}
+
+TASK sendReport {
+    RUN "report.py"
+    AFTER backupDB
+    IF SUCCESS
+}
+
+TASK cleanup {
+    RUN "cleanup.sh"
+    EVERY WEEK ON SUNDAY AT 03:00
+}
+```
+
 ### Schedule Options
 
 - `AT HH:MM` - Run at specific time
@@ -70,7 +95,6 @@ TASK taskName {
 
 - `AFTER taskName` - Run after another task
 - `BEFORE taskName` - Run before another task
-- `DEPENDS ON taskName` - Explicit dependency
 
 ### Conditions
 
